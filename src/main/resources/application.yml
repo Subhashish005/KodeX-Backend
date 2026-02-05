@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: kodex_backend
+
+  datasource:
+    # TODO: url should be in env variables as well
+    url: jdbc:postgresql://localhost:5432/kodex_db
+    username: ${KODEX_DB_USERNAME}
+    password: ${KODEX_DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl_auto: update
+
+    show-sql: true
+
+    properties:
+      hibernate:
+        format_sql: true
+
+  security:
+    # credentials for form login
+    #    user:
+    #      name: Ez
+    #      password: Ez005
+
+    # for Google OAuth Config
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${KODEX_CLIENT_ID}
+            client-secret: ${KODEX_CLIENT_SECRET}
+            scope:
+              - openid
+              - email
+              - profile
+              - https://www.googleapis.com/auth/drive.file
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+
+# this can be used to append anything before every request
+# like localhost:8080{/api}/path/to/something
+#server:
+#  servlet:
+#    context-path: /api
+
+jwt:
+  secret-key: ${KODEX_SECRET_KEY}
+  access:
+    expiration: 600000 # 10 mins
+  refresh:
+    expiration: 604800000 # 7 days
+
+# for logging purpose
+#logging:
+#  level:
+#    org:
+#      springframework:
+#        security: DEBUG
+#        web:
+#          socket: DEBUG

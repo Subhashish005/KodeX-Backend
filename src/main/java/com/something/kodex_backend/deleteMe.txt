@@ -1,0 +1,78 @@
+#####################################################################
+reference code for using google drive of a logged in user
+#####################################################################
+
+        final String clientRegistrationId = oAuthToken.getAuthorizedClientRegistrationId();
+        final String principalName = oAuthToken.getName();
+
+        OAuth2AuthorizedClient oAuth2AuthorizedClient =
+                oAuth2AuthorizedClientService.loadAuthorizedClient(clientRegistrationId, principalName);
+
+        OAuth2AccessToken oAuth2AccessToken = oAuth2AuthorizedClient.getAccessToken();
+//        System.out.println(oAuth2AuthorizedClient.getRefreshToken() == null);
+
+
+        AccessToken accessToken = null;
+
+        if (oAuth2AccessToken.getExpiresAt() != null) {
+            accessToken = new AccessToken(oAuth2AccessToken.getTokenValue(),
+                    Date.from(oAuth2AccessToken.getExpiresAt())
+            );
+        } else {
+            System.out.println("User's Access Token's Expiration Time was null!");
+        }
+
+        UserCredentials userCredentials = UserCredentials.newBuilder()
+                .setAccessToken(accessToken)
+                .setClientId(OAuthConfig.getClientId())
+                .setClientSecret(OAuthConfig.getClientSecret())
+                .build();
+
+        HttpRequestInitializer httpRequestInitializer = new HttpCredentialsAdapter(userCredentials);
+
+        Drive service = new Drive.Builder(new NetHttpTransport(),
+                GsonFactory.getDefaultInstance(),
+                httpRequestInitializer)
+                .setApplicationName("kodex")
+                .build();
+
+//        File fileMetadata = new File();
+//        fileMetadata.setMimeType("application/vnd.google-apps.folder");
+//        fileMetadata.setName("yo I made dis foldaa");
+//
+//        try {
+//            File file = service.files().create(fileMetadata)
+//                    .setFields("id")
+//                    .execute();
+//
+//            System.out.println("Folder Id: " + file.getId());
+//        } catch(GoogleJsonResponseException e) {
+//            System.out.println("failed to create a folder");
+//        }
+
+        List<File> files = new ArrayList<> ();
+        String pageToken = null;
+
+        do {
+            FileList result = service.files().list()
+                    .setQ("mimeType='application/vnd.google-apps.folder'")
+                    .setSpaces("drive")
+                    .setFields("nextPageToken, files(id, name)")
+                    .setPageToken(pageToken)
+                    .execute();
+
+            for(File file : result.getFiles()) {
+                System.out.printf("Found folder : %s (%s)\n",
+                        file.getName(), file.getId());
+            }
+
+            files.addAll(result.getFiles());
+
+            pageToken = result.getNextPageToken();
+        } while(pageToken != null);
+
+        for(File file : files) {
+            service.files().delete(file.getId()).execute();
+        }
+
+        return "hello";
