@@ -101,7 +101,7 @@ public class JwtAuthenticationUtil {
     final Claims claims = extractAllClaims(token);
 
     return !isTokenExpired(token) &&
-      claims.get("role").equals(user.getRole());
+      claims.get("role").equals(user.getRole().toString());
   }
 
   public boolean isRefreshTokenValid(String token, User user) {
