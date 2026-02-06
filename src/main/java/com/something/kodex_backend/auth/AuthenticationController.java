@@ -1,13 +1,9 @@
 package com.something.kodex_backend.auth;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingRequestCookieException;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -24,15 +20,6 @@ public class AuthenticationController {
   @PostMapping("/signup")
   public ResponseEntity<SignupResponseDto> signup(@RequestBody SignupRequestDto signupRequestDto) {
     return ResponseEntity.ok(authenticationService.signup(signupRequestDto));
-  }
-
-  // TODO: there should be a 2-factor
-  // authentication for deleting the account
-  @DeleteMapping("/delete-account")
-  public ResponseEntity<?> deleteAccount(
-    @CookieValue("refresh_token") String refreshToken
-  ) throws MissingRequestCookieException, NoSuchMethodException {
-    return authenticationService.deleteAccount(refreshToken);
   }
 
   // TODO: make a logout method
