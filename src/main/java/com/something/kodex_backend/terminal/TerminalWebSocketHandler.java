@@ -1,125 +1,106 @@
 package com.something.kodex_backend.terminal;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pty4j.PtyProcess;
-import com.pty4j.PtyProcessBuilder;
-import com.pty4j.WinSize;
-import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.web.socket.BinaryMessage;
+import com.something.kodex_backend.auth.JwtAuthenticationUtil;
+import com.something.kodex_backend.user.User;
+import com.something.kodex_backend.user.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-@Builder
-record TerminalSession(
-  PtyProcess process,
-  InputStream stdin,
-  OutputStream stdout,
-  Thread readerThread
-) {}
-
-@Slf4j
+@RequiredArgsConstructor
+@Component
 public class TerminalWebSocketHandler extends AbstractWebSocketHandler {
 
-  private final Map<String, TerminalSession> sessionMap = new ConcurrentHashMap<> ();
+  private final TerminalSessionService terminalSessionService;
+  private final ObjectMapper objectMapper;
+  private final UserRepository userRepository;
+  private final JwtAuthenticationUtil jwtAuthenticationUtil;
 
   // TODO: implement heartbeats to avoid keeping broken connection alive
   @Override
-  public void afterConnectionEstablished(WebSocketSession session) throws IOException {
-    PtyProcess process = new PtyProcessBuilder()
-      .setEnvironment(Map.of("TERM", "xterm"))
-      .setCommand(new String[] {"/bin/bash", "-l"})
-      .start();
-
-    InputStream stdin = process.getInputStream();
-    OutputStream stdout = process.getOutputStream();
-
-    TerminalSession terminalSession = TerminalSession.builder()
-      .process(process)
-      .stdin(stdin)
-      .stdout(stdout)
-      .readerThread(new Thread(() -> {
-        byte[] buffer = new byte[1024];
-        int read = -1;
-
-        try {
-          while((read = stdin.read(buffer)) != -1) {
-            session.sendMessage(
-              new TextMessage(Arrays.copyOf(buffer, read))
-            );
-          }
-        } catch(IOException ex) {
-          Logger logger = LoggerFactory.getLogger(TerminalWebSocketHandler.class);
-          logger.info(ex.getMessage());
-        }
-      }))
-      .build();
-
-    terminalSession.readerThread().start();
-
-    sessionMap.put(session.getId(), terminalSession);
+  public void afterConnectionEstablished(WebSocketSession session) {
+    session.getAttributes().put("authenticated", false);
   }
 
   @Override
   public void handleTextMessage(WebSocketSession session, TextMessage textMessage) {
+    // TODO: make custom error handlers
+
+    // check if user is authenticated or not
+    // if not try to authenticate using provided access token
+    // and create a terminal for this session
+    // if user can't authenticate close connection
+    // if already authenticated skip
+    Object authenticated = session.getAttributes().get("authenticated");
+
+    if(!((boolean) authenticated)) {
+      try {
+        String payload = textMessage.getPayload();
+        JsonNode node = objectMapper.readTree(payload);
+
+        if(!"auth".equals(node.get("type").asString())) {
+          session.close(CloseStatus.NOT_ACCEPTABLE);
+        }
+
+        String accessToken = node.get("access_token").asString();
+        String username = jwtAuthenticationUtil.getUsernameFromToken(accessToken);
+        User user = userRepository.findByUsername(username).orElseThrow();
+
+        if(!jwtAuthenticationUtil.isAccessTokenValid(accessToken, user)) {
+          session.close(CloseStatus.NOT_ACCEPTABLE);
+        }
+
+        session.getAttributes().put("userId", username);
+        session.getAttributes().put("authenticated", true);
+
+        terminalSessionService.createTerminal(username, session);
+      } catch(Exception ex) {
+        throw new RuntimeException(ex);
+      }
+
+      return;
+    }
+
     try {
       String payload = textMessage.getPayload();
-      TerminalSession terminalSession = sessionMap.get(session.getId());
 
-      if(terminalSession == null) return;
-
-      JsonNode node = new ObjectMapper().readTree(payload);
-      String type = node.get("type").asText();
+      JsonNode node = objectMapper.readTree(payload);
+      String type = node.get("type").asString();
 
       if(type == null) return;
 
-      PtyProcess process = terminalSession.process();
-
       switch(type) {
-        case "resize":
-          int cols = node.get("cols").asInt();
-          int rows = node.get("rows").asInt();
-
-          process.setWinSize(new WinSize(cols, rows));
+        case "data":
+          terminalSessionService.sendInput(
+            session.getId(),
+            node.get("data").asString()
+          );
 
           break;
 
-        case "data":
-          OutputStream stdout = terminalSession.stdout();
-
-          stdout.write(node.get("data").asText().getBytes(StandardCharsets.UTF_8));
-          stdout.flush();
+        case "resize":
+          terminalSessionService.handleResize(
+            session.getId(),
+            node.get("cols").asInt(),
+            node.get("rows").asInt()
+          );
 
           break;
       }
-    } catch(IOException ex) {
-      // should I keep it here or make it a class member?
-      Logger logger = LoggerFactory.getLogger(TerminalWebSocketHandler.class);
-      logger.info(ex.getMessage());
+
+    } catch(Exception ex) {
+      throw new RuntimeException(ex);
     }
   }
 
   @Override
   public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
-    TerminalSession terminalSession = sessionMap.remove(session.getId());
-
-    if(terminalSession == null) return;
-
-    terminalSession.process().destroy();
+    terminalSessionService.closeSession(session.getId());
   }
 
 }

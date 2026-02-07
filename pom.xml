@@ -64,6 +64,22 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
         <!-- Google dependencies -->
         <dependency>
             <groupId>com.google.api-client</groupId>
@@ -83,22 +99,6 @@
             <version>v3-rev20251019-2.0.0</version>
         </dependency>
         <!-- Google dependencies -->
-
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
 
         <!-- JJWT dependencies -->
         <dependency>
@@ -143,6 +143,27 @@
             <version>0.13.12</version>
         </dependency>
         <!-- pseudo-terminal dependencies -->
+
+        <!-- docker dependencies -->
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java</artifactId>
+            <version>3.7.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java-transport-zerodep</artifactId>
+            <version>3.7.0</version>
+        </dependency>
+
+        <!-- this dependency is more oriented towards production... -->
+<!--        <dependency>-->
+<!--            <groupId>com.github.docker-java</groupId>-->
+<!--            <artifactId>docker-java-transport-httpclient5</artifactId>-->
+<!--            <version>3.4.0</version>-->
+<!--        </dependency>-->
+        <!-- docker dependencies -->
 
     </dependencies>
 

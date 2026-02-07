@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl_auto: update
+      ddl_auto: create
 
     show-sql: true
 

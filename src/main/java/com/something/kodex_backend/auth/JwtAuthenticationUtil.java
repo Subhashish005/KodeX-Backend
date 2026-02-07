@@ -14,7 +14,6 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -100,6 +99,7 @@ public class JwtAuthenticationUtil {
   public boolean isAccessTokenValid(String token, User user) {
     final Claims claims = extractAllClaims(token);
 
+    // I think checking role is redundant
     return !isTokenExpired(token) &&
       claims.get("role").equals(user.getRole().toString());
   }

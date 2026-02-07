@@ -12,6 +12,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 @RequiredArgsConstructor
@@ -36,8 +37,13 @@ public class AppConfig {
     return authenticationConfiguration.getAuthenticationManager();
   }
 
+  @Bean
+  public ObjectMapper objectMapper() {
+    return new ObjectMapper();
+  }
+
   // TODO: remove this after you're done experimenting
-//  @Bean
+  @Bean
   public CommandLineRunner commandLineRunner() {
     return args -> userRepository.save(
       User.builder()
