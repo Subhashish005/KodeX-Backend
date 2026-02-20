@@ -5,20 +5,26 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingRequestCookieException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class AuthenticationController {
 
   private final AuthenticationService authenticationService;
 
-  @PostMapping("/login")
-  public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
+  @PostMapping("/auth/login")
+  public ResponseEntity<Map<String, String>> login(
+    @RequestBody LoginRequestDto loginRequestDto
+  ) {
     return authenticationService.login(loginRequestDto);
   }
 
-  @PostMapping("/signup")
-  public ResponseEntity<SignupResponseDto> signup(@RequestBody SignupRequestDto signupRequestDto) {
+  @PostMapping("/auth/signup")
+  public ResponseEntity<SignupResponseDto> signup(
+    @RequestBody SignupRequestDto signupRequestDto
+  ) {
     return ResponseEntity.ok(authenticationService.signup(signupRequestDto));
   }
 
@@ -26,7 +32,7 @@ public class AuthenticationController {
   // see .logout() in securityConfig
 
   @GetMapping("/renew-access-token")
-  public ResponseEntity<?> renewAccessToken(
+  public ResponseEntity<Map<String, String>> renewAccessToken(
     @CookieValue("refresh_token") String refreshToken
   ) throws NoSuchMethodException, MissingRequestCookieException {
     return authenticationService.renewAccessToken(refreshToken);

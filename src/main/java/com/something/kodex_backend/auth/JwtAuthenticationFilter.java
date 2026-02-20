@@ -32,7 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     try {
       final String requestTokenHeader = request.getHeader("Authorization");
 
-      if(requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer")) {
+      if(requestTokenHeader == null || !requestTokenHeader.startsWith("Bearer ")) {
         filterChain.doFilter(request, response);
 
         return;
@@ -50,23 +50,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       if(username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
         User user = userRepository.findByUsername(username).orElseThrow();
 
-        if(jwtAuthenticationUtil.isAccessTokenValid(token, user)) {
-          UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
-            new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-
-          // Question: what extra details are we trying to provide here
-          // timestamp: 1:21:48
-          // video link: https://youtu.be/BVdQ3iuovg0?si=L17kZSDqVqKVRbvl
-          usernamePasswordAuthenticationToken.setDetails(
-            new WebAuthenticationDetailsSource().buildDetails(request)
-          );
-
-          SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
-        } else {
+        if(!jwtAuthenticationUtil.isAccessTokenValid(token, user)) {
           // TODO: for some reason this exception is not getting caught
           // by GlobalExceptionHandler(JwtException) even tho a specialized handler exists
           throw new JwtException("Provided Access token is not valid!");
         }
+
+        UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
+          new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+
+        // Question: what extra details are we trying to provide here
+        // timestamp: 1:21:48
+        // video link: https://youtu.be/BVdQ3iuovg0?si=L17kZSDqVqKVRbvl
+        usernamePasswordAuthenticationToken.setDetails(
+          new WebAuthenticationDetailsSource().buildDetails(request)
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
       }
 
       filterChain.doFilter(request, response);

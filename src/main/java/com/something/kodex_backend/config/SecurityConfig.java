@@ -1,7 +1,6 @@
 package com.something.kodex_backend.config;
 
 import com.something.kodex_backend.auth.JwtAuthenticationFilter;
-import com.something.kodex_backend.auth.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,13 +25,15 @@ import java.util.List;
 public class SecurityConfig {
 
   private static final String[] WHITE_LIST_URL = {
-    "/api/v1/auth/**",
     "/api/v1/public/**",
+    "/api/v1/auth/**",
+    "/api/v1/oauth2/**",
+    "/api/v1/renew-access-token",
+    "/api/v1/refresh-token/google",
     // TODO: setup a proper authorization for websocket connection
     "/terminal",
   };
 
-  private final OAuth2SuccessHandler oAuth2SuccessHandler;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
   @Bean
@@ -50,16 +51,6 @@ public class SecurityConfig {
           .anyRequest().authenticated()
       )
       .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-//      .oauth2Login(oauth2 -> oauth2
-//        // unnamed class instance pretty shrimple
-//        .failureHandler(((
-//          request,
-//          response,
-//          exception) -> {
-//          log.error("OAuth2 error: {}", exception.getMessage());
-//        }))
-//        .successHandler(oAuth2SuccessHandler)
-//      );
 
     return httpSecurity.build();
   }

@@ -45,7 +45,7 @@ public class TerminalSessionService {
 
     dockerService.startContainer(containerId);
 
-    // make a new terminal process inside terminal
+    // make a new terminal process inside container
     ExecCreateCmdResponse exec = dockerService.createExec(containerId);
 
     String sessionId = ws.getId();
@@ -55,6 +55,7 @@ public class TerminalSessionService {
 
     dockerClient.execStartCmd(exec.getId())
       .withTty(true)
+      // TODO: why exactly detaching gives a funny error?
       .withDetach(false)
       .withStdIn(pipedInputStream)
       .exec(

@@ -2,13 +2,11 @@ package com.something.kodex_backend.user;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.MissingRequestCookieException;
-import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
-@Controller
+@RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/users")
 public class UserController {
@@ -17,9 +15,13 @@ public class UserController {
 
   // TODO: there should be a 2-factor
   // authentication for deleting the user account
-  @DeleteMapping("/me")
+  // userId in the argument is not redundant
+  // it is used by PreAuthorize, don't remove or it won't work
+  @PreAuthorize("#userId == authentication.principal.username")
+  @DeleteMapping("/{userId}")
   public ResponseEntity<?> deleteUser(
-    @CookieValue("refresh_token") String refreshToken
+    @CookieValue("refresh_token") String refreshToken,
+    @PathVariable String userId
   ) throws MissingRequestCookieException, NoSuchMethodException {
     return userService.deleteUser(refreshToken);
   }

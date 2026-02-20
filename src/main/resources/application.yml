@@ -31,6 +31,7 @@ spring:
           google:
             client-id: ${KODEX_CLIENT_ID}
             client-secret: ${KODEX_CLIENT_SECRET}
+            application_name: "kodex"
             scope:
               - openid
               - email

@@ -69,7 +69,7 @@ public class UserService {
         .secure(false)    // needed for http, change to true for https
         .path("/api/v1/auth")
         .sameSite("Strict")
-        .maxAge(0)
+        .maxAge(0) // to remove the refresh cookie
         .build();
 
     return ResponseEntity.ok()

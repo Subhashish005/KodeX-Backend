@@ -14,6 +14,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -38,18 +39,26 @@ public class JwtAuthenticationUtil {
   }
 
   public String generateAccessToken(User user) {
-    return generateToken(user, Collections.singletonMap("role", user.getRole()), jwtAccessExpiration);
+    Map<String, Object> claims = new HashMap<> ();
+    claims.put("name", user.getUsername());
+    claims.put("role", user.getRole().toString());
+
+    return generateToken(user, claims, jwtAccessExpiration);
   }
 
   public String generateRefreshToken(User user) {
     final String sigHash =
       DigestUtils.md5DigestAsHex((user.getUsername() + user.getId()).getBytes(StandardCharsets.UTF_8));
 
-    return generateToken(user, Collections.singletonMap("sig_hash", sigHash), jwtRefreshExpiration);
+    Map<String, Object> claims = new HashMap<> ();
+    claims.put("name", user.getUsername());
+    claims.put("sig_hash", sigHash);
+
+    return generateToken(user, claims, jwtRefreshExpiration);
   }
 
   public String getUsernameFromToken(String token) {
-    return extractClaim(token, Claims::getSubject);
+    return extractClaim(token, (claims -> (String) claims.get("name")));
   }
 
   private String generateToken(
@@ -69,7 +78,7 @@ public class JwtAuthenticationUtil {
       .header()
       .add("typ", "JWT")
       .and()
-      .subject(user.getUsername())
+      .subject(user.getId().toString())
       .claims(claims)
       .issuedAt(new Date(System.currentTimeMillis()))
       .expiration(new Date(System.currentTimeMillis() + expiration))
@@ -114,6 +123,7 @@ public class JwtAuthenticationUtil {
   }
 
   private boolean isTokenExpired(String token) {
+    // probably throw an exception here for better clarity
     return extractExpiration(token)
       .before(new Date(System.currentTimeMillis()));
   }

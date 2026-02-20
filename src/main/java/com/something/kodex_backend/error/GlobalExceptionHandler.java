@@ -55,7 +55,7 @@ public class GlobalExceptionHandler {
     return new ResponseEntity<>(apiError, apiError.getHttpStatus());
   }
 
-  // TODO: fix this exception as user not found exception exists
+  // TODO: fix this exception (as user not found exception exists)
   @ExceptionHandler(NoSuchElementException.class)
   public ResponseEntity<ApiError> handleUserNotFoundException(
     NoSuchElementException ex
@@ -90,6 +90,54 @@ public class GlobalExceptionHandler {
       "MISSING_COOKIE",
       "Required cookie not found! error: " + ex.getMessage(),
       HttpStatus.NOT_FOUND
+    );
+
+    return new ResponseEntity<>(apiError, apiError.getHttpStatus());
+  }
+
+  @ExceptionHandler(MissingTokenException.class)
+  public ResponseEntity<ApiError> handleMissingTokenException(
+    MissingTokenException ex
+  ) {
+    ApiError apiError = new ApiError(
+      "TOKEN_NOT_FOUND",
+      "error: " + ex.getMessage(),
+      HttpStatus.NOT_FOUND
+    );
+
+    return new ResponseEntity<> (apiError, apiError.getHttpStatus());
+  }
+
+  @ExceptionHandler(UserNotFoundException.class)
+  public ResponseEntity<ApiError> handleUserNotFoundException(
+    UserNotFoundException ex
+  ) {
+    ApiError apiError = new ApiError(
+      "USER_NOT_FOUND",
+      "User not found in database! cause: " + ex.getMessage(),
+      HttpStatus.NOT_FOUND
+    );
+
+    return new ResponseEntity<> (apiError, apiError.getHttpStatus());
+  }
+
+  @ExceptionHandler(EmailMismatchException.class)
+  public ResponseEntity<ApiError> handleEmailMismatchException(EmailMismatchException ex) {
+    ApiError apiError = new ApiError(
+      "EMAIL_MISMATCH",
+      "error: " + ex.getMessage(),
+      HttpStatus.NOT_ACCEPTABLE
+    );
+
+    return new ResponseEntity<>(apiError, apiError.getHttpStatus());
+  }
+
+  @ExceptionHandler(DuplicateProjectException.class)
+  public ResponseEntity<ApiError> handleDuplicateProjectException(DuplicateProjectException ex) {
+    ApiError apiError = new ApiError(
+      "DUPLICATE_PROJECT_NAME",
+      "error: " + ex.getMessage(),
+      HttpStatus.CONFLICT
     );
 
     return new ResponseEntity<>(apiError, apiError.getHttpStatus());

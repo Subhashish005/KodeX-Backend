@@ -11,18 +11,22 @@ import lombok.*;
 @Getter
 @Entity
 @Builder
+@Table(name="t_token")
 public class Token {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Integer id;
+
   @Column(
     unique = true,
     length = 512
   )
   private String value;
+
   @Enumerated(EnumType.STRING)
   private TokenType type;
+
   private boolean revoked;
 
   // Token entity owns the relationship

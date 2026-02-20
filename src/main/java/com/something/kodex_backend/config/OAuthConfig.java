@@ -13,5 +13,8 @@ public class OAuthConfig {
   // @Value annotation can be used as well
   private String clientId;
   private String clientSecret;
+  private String applicationName;
+
+  private String oAuth2RedirectUri = "http://localhost:8080/api/v1/oauth2/login/google/callback";
 
 }

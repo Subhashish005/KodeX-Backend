@@ -25,6 +25,7 @@ import org.springframework.web.bind.MissingRequestCookieException;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +38,7 @@ public class AuthenticationService {
   private final PasswordEncoder passwordEncoder;
   private final TokenRepository tokenRepository;
 
-  public ResponseEntity<?> login(LoginRequestDto loginRequestDto) {
+  public ResponseEntity<Map<String, String>> login(LoginRequestDto loginRequestDto) {
     Authentication authentication = authenticationManager.authenticate(
       new UsernamePasswordAuthenticationToken(
         loginRequestDto.getUsername(),
@@ -57,7 +58,7 @@ public class AuthenticationService {
         .from("refresh_token", refreshToken)
         .httpOnly(true)
         .secure(false)    // needed for http, change to true for https
-        .path("/api/v1/auth")
+        .path("/api/v1")  // this cookie will only be sent to paths which start with this pattern
         .sameSite("Strict")
         .maxAge(jwtAuthenticationUtil.getJwtRefreshExpiration())
         .build();
@@ -88,7 +89,7 @@ public class AuthenticationService {
     return modelMapper.toSignupResponseDto(user);
   }
 
-  public ResponseEntity<?> renewAccessToken(
+  public ResponseEntity<Map<String, String>> renewAccessToken(
     String refreshToken
   ) throws JwtException, NoSuchElementException, NoSuchMethodException, MissingRequestCookieException {
     if(refreshToken == null) {
@@ -112,7 +113,6 @@ public class AuthenticationService {
     // TODO: make a custom exception for this
     User user = userRepository.findByUsername(username).orElseThrow();
 
-    // IDK, this feels kinda dumb
     if(!jwtAuthenticationUtil.isRefreshTokenValid(refreshToken, user)) {
       throw new JwtException("Provided Refresh token is not valid!");
     }
