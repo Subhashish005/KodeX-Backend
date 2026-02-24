@@ -48,6 +48,7 @@ public class TerminalWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         String accessToken = node.get("access_token").asString();
+        Integer projectId = node.get("project_id").asInt();
         String username = jwtAuthenticationUtil.getUsernameFromToken(accessToken);
         User user = userRepository.findByUsername(username).orElseThrow();
 
@@ -58,7 +59,7 @@ public class TerminalWebSocketHandler extends AbstractWebSocketHandler {
         session.getAttributes().put("userId", username);
         session.getAttributes().put("authenticated", true);
 
-        terminalSessionService.createTerminal(username, session);
+        terminalSessionService.createTerminal(username, projectId, session);
       } catch(Exception ex) {
         throw new RuntimeException(ex);
       }

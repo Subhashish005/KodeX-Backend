@@ -37,4 +37,12 @@ public class ProjectController {
     return projectService.deleteProject(projectId, request);
   }
 
+  @GetMapping("/projects/{project-id}")
+  public ResponseEntity<ProjectFolderStructureResponseDto> getProject(
+    @PathVariable("project-id") Integer projectId,
+    HttpServletRequest request
+  ) {
+    return projectService.getProject(projectId, request);
+  }
+
 }

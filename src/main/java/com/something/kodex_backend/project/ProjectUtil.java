@@ -1,27 +1,20 @@
 package com.something.kodex_backend.project;
 
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.model.File;
-import com.google.api.services.drive.model.FileList;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.AccessToken;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.something.kodex_backend.config.OAuthConfig;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
+import kotlin.Pair;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.security.GeneralSecurityException;
-import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 
+@Slf4j
 @Component
-@RequiredArgsConstructor
 public class ProjectUtil {
-
-  private final OAuthConfig oAuthConfig;
 
   public String getAccessTokenFromRequestHeader(HttpServletRequest request) {
     String requestHeader = request.getHeader("OAuthAccessToken");
@@ -34,62 +27,48 @@ public class ProjectUtil {
     return requestHeader.substring(7);
   }
 
-  public Drive buildDrive(String accessToken) {
-    GoogleCredentials googleCredentials = GoogleCredentials.create(new AccessToken(accessToken, null));
+  public void buildProjectStructureJson(
+    Path dir,
+    FileType type,
+    ProjectFolderStructureResponseDto responseDto
+  ) throws IOException {
+    responseDto.setType(type);
+    responseDto.setName(dir.getFileName().toString());
+    responseDto.setRelativePath(dir.toString());
+    responseDto.setContent(new ArrayList<> ());
 
-    try {
-      return new Drive.Builder(
-        GoogleNetHttpTransport.newTrustedTransport(),
-        GsonFactory.getDefaultInstance(),
-        new HttpCredentialsAdapter(googleCredentials)
-      )
-        .setApplicationName(oAuthConfig.getApplicationName())
-        .build();
-    } catch(GeneralSecurityException | IOException ex) {
-      throw new RuntimeException(ex);
-    }
-  }
+    // if this file is a regular file end recursion here
+    if(type.equals(FileType.FILE)) return;
 
-  public String findAppRootFolderOrCreate(String accessToken) {
-    Drive drive = buildDrive(accessToken);
+    try(Stream<Path> paths = Files.walk(dir, 1)) {
+      List<Pair<Path, FileType>> contentList = paths
+        .filter(path -> !path.equals(dir))
+        .map(path ->
+          new Pair<>(path.getFileName(), Files.isDirectory(path) ? FileType.FOLDER : FileType.FILE)
+        )
+        .sorted((a, b) -> {
+          if(a.getSecond().equals(b.getSecond())) {
+            return a.getFirst().compareTo(b.getFirst());
+          }
 
-    // look for a particular app property that root folder is supposed have
-    String query = "mimeType='application/vnd.google-apps.folder' " +
-      "and appProperties has { key='type' and value='kodex_root' } " +
-      "and appProperties has { key='createdBy' and value='KodeX' } " +
-      "and trashed=false";
+          return a.getSecond().equals(FileType.FOLDER) ? -1 : 1;
+        })
+        .toList();
 
-    try {
-      FileList result = drive.files()
-        .list()
-        .setQ(query)
-        .setFields("files(id)")
-        .execute();
+      ProjectFolderStructureResponseDto temp;
 
-      // assume the first match is our root folder
-      // if multiple exists then its user's fault :)
-      if(!result.getFiles().isEmpty()) {
-        return result.getFiles().getFirst().getId();
+      for(Pair<Path, FileType> content : contentList) {
+        temp = new ProjectFolderStructureResponseDto();
+
+        buildProjectStructureJson(dir.resolve(content.getFirst()), content.getSecond(), temp);
+
+        responseDto.getContent().add(temp);
       }
-
-      // if no root folder is found then make a new one
-      File metadata = new File();
-      metadata.setName("KodeX_cloud_IDE_root");
-      metadata.setMimeType("application/vnd.google-apps.folder");
-
-      // this is very important, as for all the future queries for root
-      // will look for this property
-      metadata.setAppProperties(Map.of("type", "kodex_root", "createdBy", "KodeX"));
-
-      File rootFolder = drive.files()
-        .create(metadata)
-        .setFields("id")
-        .execute();
-
-      return rootFolder.getId();
     } catch(IOException ex) {
-      throw new RuntimeException(ex);
-    }
-  }
+      log.error("Failed to traverse folder for json response: '{}'", dir, ex);
 
+      throw ex;
+    }
+
+  }
 }

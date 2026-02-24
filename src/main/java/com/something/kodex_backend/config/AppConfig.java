@@ -14,8 +14,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.util.FileSystemUtils;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
@@ -49,7 +52,7 @@ public class AppConfig {
   }
 
   // TODO: remove this after you're done experimenting
-  @Bean
+//  @Bean
   public CommandLineRunner insertDummyUser() {
     return args -> {
       userRepository.save(
@@ -79,12 +82,31 @@ public class AppConfig {
 
         names.forEach(name -> {
           if(name.startsWith("/term_")) {
-            if(!"exited".equals(c.getStatus()))
-              dockerClient.stopContainerCmd(c.getId()).exec();
-
-            dockerClient.removeContainerCmd(c.getId()).exec();
+            dockerClient.removeContainerCmd(c.getId()).withForce(true).exec();
           }
         });
+      }
+    };
+  }
+
+  @Bean
+  public CommandLineRunner ensureLocalProjectRootDirectory() {
+    return args -> {
+      // first delete the projects directory for a fresh start
+      FileSystemUtils.deleteRecursively(Path.of("/tmp/kodex/projects"));
+
+      Path kodexRootDir = Path.of("/tmp/kodex");
+      boolean kodexRootExists = Files.exists(kodexRootDir);
+
+      if(!kodexRootExists) {
+        Files.createDirectories(kodexRootDir);
+      }
+
+      Path projectRootDir = kodexRootDir.resolve("projects");
+      boolean projectRootExists = Files.exists(projectRootDir);
+
+      if(!projectRootExists) {
+        Files.createDirectories(projectRootDir);
       }
     };
   }

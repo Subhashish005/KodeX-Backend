@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,8 +31,9 @@ public class TerminalSessionService {
   // after all sessions associated with are removed to give
   // a chance for reconnect and save on cold start of container
   private final Map<String, Integer> userSessionCountMap = new ConcurrentHashMap<> ();
+  private final static Path LOCAL_ROOT = Path.of("/tmp/kodex/projects");
 
-  public void createTerminal(String userId, WebSocketSession ws) throws IOException {
+  public void createTerminal(String userId, Integer projectId, WebSocketSession ws) throws IOException {
     if(userSessionCountMap.getOrDefault(userId, 0) >= 4) {
       System.err.printf(
         "User with userId: %s has reached max allowed terminal limit! (which is 4)",
@@ -41,7 +43,8 @@ public class TerminalSessionService {
       return;
     }
 
-    String containerId = dockerService.getOrCreateForUser(userId);
+    // assume the local directory for project already exists
+    String containerId = dockerService.getOrCreateForUser(userId, LOCAL_ROOT.resolve(projectId.toString()));
 
     dockerService.startContainer(containerId);
 

@@ -1,5 +1,6 @@
 package com.something.kodex_backend.oauth;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.something.kodex_backend.config.OAuthConfig;
 import com.something.kodex_backend.project.ProjectRequestDto;
 import io.jsonwebtoken.Claims;
@@ -58,7 +59,7 @@ public class OAuthenticationUtil {
     String header    = parts[0];
     String payload   = parts[1];
 
-    PublicKey googlePublicKey = null;
+    PublicKey googlePublicKey;
 
     try {
       googlePublicKey = getMatchingGooglePublicKey(header);

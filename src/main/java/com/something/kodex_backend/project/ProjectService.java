@@ -9,39 +9,52 @@ import com.something.kodex_backend.user.User;
 import com.something.kodex_backend.user.UserRepository;
 import com.something.kodex_backend.utils.ModelMapper;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProjectService {
 
   private final ProjectUtil projectUtil;
   private final ModelMapper modelMapper;
   private final ProjectRepository projectRepository;
   private final UserRepository userRepository;
+  private final DriveService driveService;
+  private final ProjectMountService projectMountService;
 
   private static final String MIME_TYPE_FOLDER = "application/vnd.google-apps.folder";
   private static final String APP_NAME = "KodeX";
+  private static final Path LOCAL_ROOT = Path.of("/tmp/kodex/projects");
 
   public ResponseEntity<List<ProjectResponseDto>> getAllUserProjects(HttpServletRequest request) {
     // assume the token is valid
     // if not the frontend is supposed to refresh it and ask again
 
     String accessToken = projectUtil.getAccessTokenFromRequestHeader(request);
+    String rootId;
 
-    String rootId = projectUtil.findAppRootFolderOrCreate(accessToken);
+    try {
+      rootId = driveService.findAppRootFolderOrCreate(accessToken);
+    } catch(IOException ex) {
+      log.error("App root folder not found or can't be created!");
 
-    Drive drive = projectUtil.buildDrive(accessToken);
+      throw new RuntimeException(ex);
+    }
+
+    Drive drive = driveService.buildDrive(accessToken);
 
     String query = String.format(
       " mimeType='%s'" +
@@ -117,12 +130,19 @@ public class ProjectService {
     }
 
     String accessToken = projectUtil.getAccessTokenFromRequestHeader(request);
+    String rootId;
 
     // making api call to google each time to do anything related to root folder
     // this is bad, gonna fix sometime
-    String rootId = projectUtil.findAppRootFolderOrCreate(accessToken);
+    try {
+      rootId = driveService.findAppRootFolderOrCreate(accessToken);
+    } catch(IOException ex) {
+      log.error("App root folder not found or can't be created!");
 
-    Drive drive = projectUtil.buildDrive(accessToken);
+      throw new RuntimeException(ex);
+    }
+
+    Drive drive = driveService.buildDrive(accessToken);
 
     File metadata = new File();
     metadata.setMimeType(MIME_TYPE_FOLDER);
@@ -167,7 +187,7 @@ public class ProjectService {
 
     String accessToken = projectUtil.getAccessTokenFromRequestHeader(request);
 
-    Drive drive = projectUtil.buildDrive(accessToken);
+    Drive drive = driveService.buildDrive(accessToken);
 
     try {
       File metadata = new File();
@@ -185,4 +205,19 @@ public class ProjectService {
     }
   }
 
+  public ResponseEntity<ProjectFolderStructureResponseDto> getProject(Integer projectId, HttpServletRequest request) {
+    String accessToken = projectUtil.getAccessTokenFromRequestHeader(request);
+    ProjectFolderStructureResponseDto responseDto = new ProjectFolderStructureResponseDto();
+
+    try {
+      Path localProjectPath = projectMountService.openProject(accessToken, projectId);
+
+      projectUtil.buildProjectStructureJson(localProjectPath, FileType.FOLDER, responseDto);
+    } catch(IOException | ExecutionException | InterruptedException ex) {
+      throw new RuntimeException(ex);
+    }
+
+
+    return ResponseEntity.ok().body(responseDto);
+  }
 }

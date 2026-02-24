@@ -4,22 +4,31 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.model.Bind;
+import com.github.dockerjava.api.model.Capability;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Volume;
+import com.something.kodex_backend.project.ProjectMountService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DockerService {
 
   private final DockerClient dockerClient;
+  private final ProjectMountService projectMountService;
 
   // userId to ContainerId
   private final Map<String, String> userContainerMap = new ConcurrentHashMap<> ();
 
-  public String getOrCreateForUser(String userId) {
+  public String getOrCreateForUser(String userId, Path localProjectDir) {
     String containerName = "term_" + userId;
     String containerId = userContainerMap.get(userId);
 
@@ -29,9 +38,26 @@ public class DockerService {
       return containerId;
     }
 
+    HostConfig config = HostConfig
+      .newHostConfig()
+      .withBinds(
+        new Bind(
+          localProjectDir.toString(),
+          new Volume("/workspace")
+        )
+      )
+      .withMemory(256 * 1024 * 1024L)
+      .withCpuCount(1L)
+      .withReadonlyRootfs(true)
+      .withCapDrop(Capability.ALL)
+      .withPidsLimit(128L)
+      .withNetworkMode("none");
+
     // or make a new one if not
     CreateContainerResponse container = dockerClient.createContainerCmd("alpine:latest")
       .withName(containerName)
+      .withHostConfig(config)
+      .withWorkingDir("/workspace")
       .withTty(true)
       .withAttachStdin(true)
       .withAttachStdout(true)
@@ -68,7 +94,11 @@ public class DockerService {
   }
 
   public void stopAndRemoveContainer(String userId, String containerId) {
-    System.err.println("removing container with id:" + containerId);
+    log.info("removing container with id: {} made for user {}", containerId, userId);
+
+    // delete the local directory for the project folder as well
+//    projectMountService.
+
 
     try {
       dockerClient.stopContainerCmd(containerId)
