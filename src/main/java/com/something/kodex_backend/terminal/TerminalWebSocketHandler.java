@@ -1,8 +1,8 @@
 package com.something.kodex_backend.terminal;
 
-import com.something.kodex_backend.auth.JwtAuthenticationUtil;
-import com.something.kodex_backend.user.User;
-import com.something.kodex_backend.user.UserRepository;
+import com.something.kodex_backend.jwtUtils.JwtAuthenticationUtil;
+import com.something.kodex_backend.model.User;
+import com.something.kodex_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;

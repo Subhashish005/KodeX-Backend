@@ -1,12 +1,9 @@
 package com.something.kodex_backend.oauth;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.something.kodex_backend.config.OAuthConfig;
-import com.something.kodex_backend.project.ProjectRequestDto;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.impl.DefaultClaims;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.json.JsonParseException;
 import org.springframework.http.*;

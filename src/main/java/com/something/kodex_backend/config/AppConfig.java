@@ -2,9 +2,9 @@ package com.something.kodex_backend.config;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.model.Container;
-import com.something.kodex_backend.user.Role;
-import com.something.kodex_backend.user.User;
-import com.something.kodex_backend.user.UserRepository;
+import com.something.kodex_backend.enums.Role;
+import com.something.kodex_backend.model.User;
+import com.something.kodex_backend.repository.UserRepository;
 import com.something.kodex_backend.utils.ModelMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
