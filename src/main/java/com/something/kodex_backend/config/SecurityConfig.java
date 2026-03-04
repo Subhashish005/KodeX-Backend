@@ -1,6 +1,6 @@
 package com.something.kodex_backend.config;
 
-import com.something.kodex_backend.auth.JwtAuthenticationFilter;
+import com.something.kodex_backend.jwtUtils.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

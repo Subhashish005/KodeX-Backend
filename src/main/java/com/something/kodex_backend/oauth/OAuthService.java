@@ -1,14 +1,14 @@
 package com.something.kodex_backend.oauth;
 
 import com.something.kodex_backend.config.OAuthConfig;
-import com.something.kodex_backend.error.EmailMismatchException;
-import com.something.kodex_backend.error.MissingTokenException;
-import com.something.kodex_backend.error.UserNotFoundException;
-import com.something.kodex_backend.token.Token;
-import com.something.kodex_backend.token.TokenRepository;
-import com.something.kodex_backend.token.TokenType;
-import com.something.kodex_backend.user.User;
-import com.something.kodex_backend.user.UserRepository;
+import com.something.kodex_backend.customException.EmailMismatchException;
+import com.something.kodex_backend.customException.MissingTokenException;
+import com.something.kodex_backend.customException.UserNotFoundException;
+import com.something.kodex_backend.model.Token;
+import com.something.kodex_backend.repository.TokenRepository;
+import com.something.kodex_backend.enums.TokenType;
+import com.something.kodex_backend.model.User;
+import com.something.kodex_backend.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

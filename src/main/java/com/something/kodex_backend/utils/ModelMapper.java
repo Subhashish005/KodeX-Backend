@@ -1,9 +1,9 @@
 package com.something.kodex_backend.utils;
 
-import com.something.kodex_backend.auth.SignupResponseDto;
-import com.something.kodex_backend.project.Project;
-import com.something.kodex_backend.project.ProjectResponseDto;
-import com.something.kodex_backend.user.User;
+import com.something.kodex_backend.dtos.SignupResponseDto;
+import com.something.kodex_backend.model.Project;
+import com.something.kodex_backend.dtos.ProjectResponseDto;
+import com.something.kodex_backend.model.User;
 import org.springframework.stereotype.Component;
 
 @Component

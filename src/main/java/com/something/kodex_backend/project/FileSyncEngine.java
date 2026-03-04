@@ -1,5 +1,7 @@
 package com.something.kodex_backend.project;
 
+import com.something.kodex_backend.model.DriveFile;
+import com.something.kodex_backend.service.DriveService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,7 +12,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Stream;
