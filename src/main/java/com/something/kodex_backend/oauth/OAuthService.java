@@ -119,7 +119,7 @@ public class OAuthService {
   public ResponseEntity<Map<String, String>> refreshToken(
     String refreshToken
   ) {
-    String oAuthAccessToken = getAccessToken(refreshToken);
+    String oAuthAccessToken = oAuthenticationUtil.getAccessToken(refreshToken);
 
     return ResponseEntity.ok(Map.of("oauth_access_token", oAuthAccessToken));
   }
@@ -177,48 +177,6 @@ public class OAuthService {
     params.add("grant_type", "authorization_code");
 
     return new HttpEntity<> (params, headers);
-  }
-
-  private HttpEntity<MultiValueMap<String, String>> requestURLBuilderForRefresh(
-    String refreshToken, HttpHeaders headers
-  ) {
-    MultiValueMap<String, String> params = new LinkedMultiValueMap<> ();
-
-    params.add("client_id", oAuthConfig.getClientId());
-    params.add("client_secret", oAuthConfig.getClientSecret());
-    params.add("refresh_token", refreshToken);
-    params.add("grant_type", "refresh_token");
-
-    return new HttpEntity<> (params, headers);
-  }
-
-  private String getAccessToken(String refreshToken) {
-    RestTemplate restTemplate = new RestTemplate();
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-    HttpEntity<MultiValueMap<String, String>> request =
-      requestURLBuilderForRefresh(refreshToken, headers);
-
-    try {
-      CustomGoogleTokenResponse tokenResponse = restTemplate.postForObject(
-        "https://oauth2.googleapis.com/token",
-        request,
-        CustomGoogleTokenResponse.class
-      );
-
-      if(tokenResponse == null) throw new RuntimeException("Failed to receive a token response from Google!");
-
-      String accessToken = tokenResponse.getAccessToken();
-
-      if(accessToken == null) throw new MissingTokenException("Error while obtaining oauth access token!");
-
-      return accessToken;
-
-    } catch(RestClientException ex) {
-      throw new RuntimeException(ex);
-    }
   }
 
   private void removeAllUserOAuthRefreshTokens(Integer userId) {

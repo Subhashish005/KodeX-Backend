@@ -93,21 +93,13 @@ public class AppConfig {
   public CommandLineRunner ensureLocalProjectRootDirectory() {
     return args -> {
       // first delete the projects directory for a fresh start
-      FileSystemUtils.deleteRecursively(Path.of("/tmp/kodex/projects"));
+      Path projectRootDir = Path.of("/tmp/kodex/projects");
 
-      Path kodexRootDir = Path.of("/tmp/kodex");
-      boolean kodexRootExists = Files.exists(kodexRootDir);
+      // cleanup everything
+      FileSystemUtils.deleteRecursively(projectRootDir.getParent());
 
-      if(!kodexRootExists) {
-        Files.createDirectories(kodexRootDir);
-      }
-
-      Path projectRootDir = kodexRootDir.resolve("projects");
-      boolean projectRootExists = Files.exists(projectRootDir);
-
-      if(!projectRootExists) {
-        Files.createDirectories(projectRootDir);
-      }
+      // create the project root again
+      Files.createDirectories(projectRootDir);
     };
   }
 

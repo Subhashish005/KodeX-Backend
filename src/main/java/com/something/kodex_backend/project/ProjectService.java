@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -43,7 +44,7 @@ public class ProjectService {
     // assume the token is valid
     // if not the frontend is supposed to refresh it and ask again
 
-    String accessToken = projectUtil.getAccessTokenFromRequestHeader(request);
+    String accessToken = projectUtil.extractAccessTokenFromHeader(request);
     String rootId;
 
     try {
@@ -129,7 +130,7 @@ public class ProjectService {
       throw new DuplicateProjectException("A project exists with same name!");
     }
 
-    String accessToken = projectUtil.getAccessTokenFromRequestHeader(request);
+    String accessToken = projectUtil.extractAccessTokenFromHeader(request);
     String rootId;
 
     // making api call to google each time to do anything related to root folder
@@ -185,7 +186,7 @@ public class ProjectService {
 
     Project project = projectRepository.findById(projectId).orElseThrow();
 
-    String accessToken = projectUtil.getAccessTokenFromRequestHeader(request);
+    String accessToken = projectUtil.validateAccessTokenAndGetNewToken(request, projectId);
 
     Drive drive = driveService.buildDrive(accessToken);
 
@@ -205,19 +206,114 @@ public class ProjectService {
     }
   }
 
-  public ResponseEntity<ProjectFolderStructureResponseDto> getProject(Integer projectId, HttpServletRequest request) {
-    String accessToken = projectUtil.getAccessTokenFromRequestHeader(request);
+  public ResponseEntity<ProjectFolderStructureResponseDto> getProject(
+    Integer projectId,
+    HttpServletRequest request
+  ) {
+    String accessToken = projectUtil.validateAccessTokenAndGetNewToken(request, projectId);
     ProjectFolderStructureResponseDto responseDto = new ProjectFolderStructureResponseDto();
 
     try {
       Path localProjectPath = projectMountService.openProject(accessToken, projectId);
 
-      projectUtil.buildProjectStructureJson(localProjectPath, FileType.FOLDER, responseDto);
+      projectUtil.buildProjectStructureJson(localProjectPath, localProjectPath, FileType.FOLDER, responseDto);
     } catch(IOException | ExecutionException | InterruptedException ex) {
       throw new RuntimeException(ex);
     }
 
+    // change root project id with project name
+    String projectName = projectRepository.findById(projectId).orElseThrow().getName();
+
+    responseDto.setName(projectName);
 
     return ResponseEntity.ok().body(responseDto);
+  }
+
+  public ResponseEntity<Map<String, String>> createFolder(
+    Integer projectId,
+    ProjectChildrenRequestDto requestDto
+  ) {
+    try {
+      String folderHash =
+        projectMountService.createFolder(projectId, requestDto.getHash(), requestDto.getName());
+
+      return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", folderHash));
+    } catch(IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  public ResponseEntity<Map<String, String>> createFile(
+    Integer projectId,
+    ProjectChildrenRequestDto requestDto
+  ) {
+    try {
+      String fileHash =
+        projectMountService.createFile(projectId, requestDto.getHash(), requestDto.getName());
+
+      return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", fileHash));
+    } catch(IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  public ResponseEntity<Void> deleteFolder(
+    Integer projectId,
+    String parentHash,
+    String folderName) {
+    try {
+      projectMountService.deleteFolder(projectId, parentHash, folderName);
+
+      return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+    } catch(IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  public ResponseEntity<Void> deleteFile(
+    Integer projectId,
+    String parentHash,
+    String fileName
+  ) {
+    try {
+      projectMountService.deleteFile(projectId, parentHash, fileName);
+
+      return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+    } catch(IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  public ResponseEntity<String> getFileData(
+    Integer projectId,
+    String parentHash,
+    String fileName
+  ) {
+    Path filePath = projectMountService.resolvePath(projectId, parentHash).resolve(fileName);
+
+    try {
+      String content = Files.readString(filePath);
+
+      return ResponseEntity.ok(content);
+    } catch(IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  public ResponseEntity<Void> putFileData(
+    Integer projectId,
+    String parentHash,
+    String fileName,
+    String content
+  ) {
+    Path filePath = projectMountService.resolvePath(projectId, parentHash).resolve(fileName);
+
+    try {
+      Files.writeString(filePath, content);
+
+      return ResponseEntity.ok().build();
+    } catch(IOException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 }

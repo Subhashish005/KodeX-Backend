@@ -1,6 +1,7 @@
 package com.something.kodex_backend.auth;
 
 import com.something.kodex_backend.error.UserAlreadyExistsException;
+import com.something.kodex_backend.error.UserNotFoundException;
 import com.something.kodex_backend.token.Token;
 import com.something.kodex_backend.token.TokenRepository;
 import com.something.kodex_backend.token.TokenType;
@@ -47,6 +48,10 @@ public class AuthenticationService {
     );
 
     User user = (User) authentication.getPrincipal();
+
+    if(user == null) {
+      throw new UserNotFoundException("User not found!");
+    }
 
     String accessToken = jwtAuthenticationUtil.generateAccessToken(user);
     String refreshToken = jwtAuthenticationUtil.generateRefreshToken(user);

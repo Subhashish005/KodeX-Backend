@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,8 +44,16 @@ public class TerminalSessionService {
       return;
     }
 
-    // assume the local directory for project already exists
-    String containerId = dockerService.getOrCreateForUser(userId, LOCAL_ROOT.resolve(projectId.toString()));
+    Path projectRoot = LOCAL_ROOT.resolve(projectId.toString());
+
+
+    // try to create project root here as well
+    // basically a race condition occurs where if this method
+    // and openProject might compete.
+    // if this method wins the project root will be
+    // created by 'root' user which WILL cause issues
+    Files.createDirectories(projectRoot);
+    String containerId = dockerService.getOrCreateForUser(userId, projectRoot);
 
     dockerService.startContainer(containerId);
 
@@ -118,6 +127,7 @@ public class TerminalSessionService {
     }
   }
 
+  // TODO: fix - something is going wrong while removing container
   public void closeSession(String sessionId) {
     TerminalSession ts = sessionMap.get(sessionId);
     if(ts == null) return;

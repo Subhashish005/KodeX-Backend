@@ -17,7 +17,8 @@ public class SyncScheduler {
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private final ConcurrentHashMap<Integer, ScheduledFuture<?>> activeSessions = new ConcurrentHashMap<> ();
 
-  public void startScheduling(String accessToken, Integer projectId, String projectDriveId) {
+
+  public void startScheduling(Integer projectId, String projectDriveId) {
     if(activeSessions.containsKey(projectId)) {
       log.warn("Scheduling for project {} is in progress, skipping", projectId);
 
@@ -25,7 +26,7 @@ public class SyncScheduler {
     }
 
     ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(
-      () -> runPush(accessToken, projectId, projectDriveId),
+      () -> runPush(projectId, projectDriveId),
       syncIntervalSeconds, // initial delay, no need to push right after a pull
       syncIntervalSeconds,
       TimeUnit.SECONDS
@@ -46,9 +47,9 @@ public class SyncScheduler {
     }
   }
 
-  private void runPush(String accessToken,  Integer projectId, String projectDriveId) {
+  private void runPush(Integer projectId, String projectDriveId) {
     try {
-      fileSyncEngine.push(accessToken, projectId, projectDriveId);
+      fileSyncEngine.push(projectId, projectDriveId);
     } catch(Exception ex) {
       log.error("Scheduled push failed for project {}: {}", projectId, ex.getMessage(), ex);
     }

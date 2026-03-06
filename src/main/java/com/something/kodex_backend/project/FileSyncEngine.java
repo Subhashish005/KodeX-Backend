@@ -10,7 +10,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Stream;
@@ -24,7 +25,9 @@ public class FileSyncEngine {
 
   private final DriveService driveService;
   private final SyncState syncState;
+  private final PathIndex pathIndex;
   private final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+  private final ProjectUtil projectUtil;
 
   // this function will pull the files inside the project to local folder
   public void pull(
@@ -42,6 +45,13 @@ public class FileSyncEngine {
     Path projectRoot = LOCAL_ROOT.resolve(projectId.toString());
 
     Files.createDirectories(projectRoot);
+
+    // while making container everything is set to read only
+    // A little hack to allow user to modify anything in project folder only
+    Set<PosixFilePermission> permissions =
+      PosixFilePermissions.fromString("rwxrwxrwx");
+
+    Files.setPosixFilePermissions(projectRoot, permissions);
 
     for(DriveFile driveFile : driveFiles) {
       Path localPath = projectRoot.resolve(driveFile.relativePath());
@@ -77,20 +87,35 @@ public class FileSyncEngine {
       throw new RuntimeException("Pull failed for some files:\n" + String.join("\n", errors));
     }
 
+    // build sync state for sync scheduling
     for(Future<DriveFile> future : futures) {
       DriveFile driveFile = future.get();
       syncState.put(projectId, driveFile);
+    }
+
+    // build path index from local dir to enable frontend to make request using hash
+    // instead of using storing long paths
+    try(Stream<Path> paths = Files.walk(projectRoot)) {
+      paths
+        // excluding root as root can be easily identified by project id
+        // and exclude all files as only folders can contain other files and folders
+        .filter(path -> !path.equals(projectRoot) || Files.isRegularFile(path))
+        .forEach(path -> {
+          String relativePath = projectRoot.relativize(path).toString();
+          pathIndex.put(projectId, relativePath);
+        });
     }
 
     log.info("Pull finished for project {}: {} files", projectId, driveFiles.size());
   }
 
   public void push(
-    String accessToken,
     Integer projectId,
     String projectDriveId
   ) throws IOException, InterruptedException {
     log.info("Pushing for project {}", projectId);
+
+    String accessToken = projectUtil.getAccessTokenForUser(projectId);
 
     Path projectRoot = LOCAL_ROOT.resolve(projectId.toString());
 
@@ -100,6 +125,8 @@ public class FileSyncEngine {
       return;
     }
 
+    // empty folders won't be pushed...
+    // call it optimization :)
     List<Path> localFiles;
     try(Stream<Path> walk = Files.walk(projectRoot)) {
       localFiles = walk.filter(Files::isRegularFile).toList();
@@ -126,7 +153,7 @@ public class FileSyncEngine {
         }
 
         // if file is modified check hash to decide whether to upload or not
-        String localHash = computeMd5(localFile);
+        String localHash = computeMd5Hash(localFile);
         if(localHash.equals(existing.get().md5Checksum())) {
           // hashes matched, just update the last modified time to avoid recompute next cycle
           syncState.put(
@@ -206,21 +233,21 @@ public class FileSyncEngine {
     }
 
     log.info(
-      "Push completed for project {}: {} uploaded, {} deleted",
+      "Push completed for project '{}': {} uploaded, {} deleted",
       projectId, toUpload.size(), toDelete.size()
     );
   }
 
   public void cleanup(
-    String accessToken,
     Integer projectId,
     String projectDriveId
   ) throws IOException, InterruptedException {
-    log.info("Cleaning up project {}", projectId);
+    log.info("Cleaning up project '{}'", projectId);
 
-    push(accessToken, projectId, projectDriveId);
+    push(projectId, projectDriveId);
     deleteLocalDirectory(LOCAL_ROOT.resolve(projectId.toString()));
     syncState.clearProject(projectId);
+    pathIndex.clearProject(projectId);
 
     log.info("Cleanup complete for project {}", projectId);
   }
@@ -253,7 +280,7 @@ public class FileSyncEngine {
     }
   }
 
-  private String computeMd5(Path filePath) throws IOException {
+  private String computeMd5Hash(Path filePath) throws IOException {
     try(InputStream inputStream = Files.newInputStream(filePath)) {
       return DigestUtils.md5DigestAsHex(inputStream);
     }

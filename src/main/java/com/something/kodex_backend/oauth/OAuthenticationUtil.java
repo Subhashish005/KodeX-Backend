@@ -1,16 +1,21 @@
 package com.something.kodex_backend.oauth;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.something.kodex_backend.config.OAuthConfig;
+import com.something.kodex_backend.error.MissingTokenException;
 import com.something.kodex_backend.project.ProjectRequestDto;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.impl.DefaultClaims;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.json.JsonParseException;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import tools.jackson.databind.ObjectMapper;
@@ -24,6 +29,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class OAuthenticationUtil {
@@ -51,6 +57,38 @@ public class OAuthenticationUtil {
     }
   }
 
+  public boolean isAccessTokenValid(String accessToken) {
+    RestTemplate restTemplate = new RestTemplate();
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setBearerAuth(accessToken);
+
+    HttpEntity<String> entity = new HttpEntity<> (headers);
+
+    try {
+      CustomGoogleAccessTokenResponse tokenResponse = restTemplate.exchange(
+        "https://oauth2.googleapis.com/tokeninfo",
+        HttpMethod.GET,
+        entity,
+        CustomGoogleAccessTokenResponse.class
+      ).getBody();
+
+      assert tokenResponse != null;
+
+      List<String> scopes = Arrays.asList(tokenResponse.getScopes().split(" "));
+
+      if(!scopes.contains("https://www.googleapis.com/auth/drive.file")) {
+        throw new RuntimeException("Requested drive scope not found!");
+      }
+
+      return oAuthConfig.getClientId().equals(tokenResponse.getAud());
+    } catch(RestClientException ex) {
+      log.error("Error while validating access Token! token: {}", accessToken, ex);
+
+      return false;
+    }
+  }
+
   public CustomGoogleUserInfo fetchUserInfoUsingIdToken(String idToken) {
     String[] parts = idToken.split("\\.");
 
@@ -73,6 +111,48 @@ public class OAuthenticationUtil {
     ObjectMapper mapper = new ObjectMapper();
 
     return mapper.readValue(Base64.getUrlDecoder().decode(payload), CustomGoogleUserInfo.class);
+  }
+
+  public String getAccessToken(String refreshToken) {
+    RestTemplate restTemplate = new RestTemplate();
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+    HttpEntity<MultiValueMap<String, String>> request =
+      requestURLBuilderForRefresh(refreshToken, headers);
+
+    try {
+      CustomGoogleTokenResponse tokenResponse = restTemplate.postForObject(
+        "https://oauth2.googleapis.com/token",
+        request,
+        CustomGoogleTokenResponse.class
+      );
+
+      if(tokenResponse == null) throw new RuntimeException("Failed to receive a token response from Google!");
+
+      String accessToken = tokenResponse.getAccessToken();
+
+      if(accessToken == null) throw new MissingTokenException("Error while obtaining oauth access token!");
+
+      return accessToken;
+
+    } catch(RestClientException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  private HttpEntity<MultiValueMap<String, String>> requestURLBuilderForRefresh(
+    String refreshToken, HttpHeaders headers
+  ) {
+    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+
+    params.add("client_id", oAuthConfig.getClientId());
+    params.add("client_secret", oAuthConfig.getClientSecret());
+    params.add("refresh_token", refreshToken);
+    params.add("grant_type", "refresh_token");
+
+    return new HttpEntity<> (params, headers);
   }
 
   private boolean isIdTokenValid(
@@ -225,8 +305,8 @@ public class OAuthenticationUtil {
 
     Pattern keyPattern   = Pattern.compile("\"([^\"]+)\"");
     Pattern valuePattern = Pattern.compile(":\\s*\"?([^\"]+)\"?");
-    Matcher keyMatcher = null;
-    Matcher valueMatcher = null;
+    Matcher keyMatcher;
+    Matcher valueMatcher;
 
     for(String claim : claimsArray) {
       // extract key

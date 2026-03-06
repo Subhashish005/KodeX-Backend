@@ -4,11 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
-import com.github.dockerjava.api.model.Bind;
-import com.github.dockerjava.api.model.Capability;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Volume;
-import com.something.kodex_backend.project.ProjectMountService;
+import com.github.dockerjava.api.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +19,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DockerService {
 
   private final DockerClient dockerClient;
-  private final ProjectMountService projectMountService;
 
   // userId to ContainerId
   private final Map<String, String> userContainerMap = new ConcurrentHashMap<> ();
@@ -40,10 +35,12 @@ public class DockerService {
 
     HostConfig config = HostConfig
       .newHostConfig()
+      .withReadonlyRootfs(true)
       .withBinds(
         new Bind(
           localProjectDir.toString(),
-          new Volume("/workspace")
+          new Volume("/workspace"),
+          AccessMode.rw
         )
       )
       .withMemory(256 * 1024 * 1024L)

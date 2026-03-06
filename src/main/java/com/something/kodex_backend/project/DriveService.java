@@ -91,13 +91,13 @@ public class DriveService {
 
   public List<DriveFile> listFilesRecursively(
     String accessToken,
-    String googleDriveId
+    String projectDriveId
   ) throws IOException {
     Drive drive = buildDrive(accessToken);
 
     List<DriveFile> result = new ArrayList<> ();
 
-    collectFiles(drive, googleDriveId, "", result);
+    collectFiles(drive, projectDriveId, "", result);
 
     return result;
   }

@@ -8,10 +8,8 @@ import org.springframework.util.FileSystemUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -22,6 +20,8 @@ public class ProjectMountService {
   private final FileSyncEngine fileSyncEngine;
   private final SyncScheduler syncScheduler;
   private final ConcurrentHashMap<Integer, String> activeSessions = new ConcurrentHashMap<> ();
+  private final PathIndex pathIndex;
+  private final ProjectUtil projectUtil;
 
   private final static Path LOCAL_ROOT = Path.of("/tmp/kodex/projects");
 
@@ -48,7 +48,7 @@ public class ProjectMountService {
     }
 
     activeSessions.put(projectId, projectDriveId);
-    syncScheduler.startScheduling(accessToken, projectId, projectDriveId);
+    syncScheduler.startScheduling(projectId, projectDriveId);
 
     log.info("Project '{}' opened at {}", projectId, localPath);
 
@@ -56,16 +56,14 @@ public class ProjectMountService {
   }
 
   public void saveProject(
-    String accessToken,
     Integer projectId
   ) throws IOException, InterruptedException {
     log.info("manual save triggered for project '{}'", projectId);
 
-    fileSyncEngine.push(accessToken, projectId, getActiveFolderDriveId(projectId));
+    fileSyncEngine.push(projectId, getActiveFolderDriveId(projectId));
   }
 
   public void closeProject(
-    String accessToken,
     Integer projectId
   ) throws IOException, InterruptedException {
     log.info("Closing project '{}'", projectId);
@@ -75,13 +73,85 @@ public class ProjectMountService {
     syncScheduler.stopScheduling(projectId);
 
     try {
-      fileSyncEngine.cleanup(accessToken, projectId, projectDriveId);
+      fileSyncEngine.cleanup(projectId, projectDriveId);
     } finally {
       // always remove project from active session
       activeSessions.remove(projectId);
     }
 
     log.info("Project '{}' closed", projectId);
+  }
+
+  public String createFolder(
+    Integer projectId,
+    String parentHash,
+    String folderName
+  ) throws IOException {
+    // first get parent path using project id and parent's hash
+    Path parentPath = resolvePath(projectId, parentHash);
+    // now get the absolute path for this folder
+    Path newFolder = parentPath.resolve(folderName);
+
+    Files.createDirectories(newFolder);
+
+    // update pathIndex
+    String relativePath = LOCAL_ROOT.resolve(projectId.toString())
+      .relativize(newFolder).toString();
+
+    pathIndex.put(projectId, relativePath);
+
+    // return hash for this folder
+    return projectUtil.hash(relativePath);
+  }
+
+  // this method can possibly be refactored to be combined with createFolder
+  public String createFile(
+    Integer projectId,
+    String parentHash,
+    String fileName
+  ) throws IOException {
+    Path parentPath = resolvePath(projectId, parentHash);
+    Path newFile = parentPath.resolve(fileName);
+
+    String relativePath = LOCAL_ROOT.resolve(projectId.toString())
+        .relativize(newFile).toString();
+
+    Files.createFile(newFile);
+
+    return projectUtil.hash(relativePath);
+  }
+
+  public void deleteFolder(
+    Integer projectId,
+    String parentHash,
+    String folderName
+  ) throws IOException {
+    Path parentPath = resolvePath(projectId, parentHash);
+    Path target = parentPath.resolve(folderName);
+
+    FileSystemUtils.deleteRecursively(target);
+
+    pathIndex.remove(projectId, parentHash);
+  }
+
+  public void deleteFile(
+    Integer projectId,
+    String parentHash,
+    String fileName
+  ) throws IOException {
+    Path parentPath = resolvePath(projectId, parentHash);
+
+    Files.delete(parentPath.resolve(fileName));
+  }
+
+  public Path resolvePath(Integer projectId, String parentHash) {
+    if(parentHash == null || parentHash.equals("null")) return LOCAL_ROOT.resolve(projectId.toString());
+
+    String relativePath = pathIndex.getPath(projectId, parentHash).orElseThrow(
+      () -> new IllegalArgumentException("Unknown path hash : " + parentHash)
+    );
+
+    return LOCAL_ROOT.resolve(projectId.toString()).resolve(relativePath);
   }
 
   private String getActiveFolderDriveId(Integer projectId) {
