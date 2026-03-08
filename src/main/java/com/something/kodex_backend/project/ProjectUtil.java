@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import kotlin.Pair;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.DigestUtils;
 
@@ -123,6 +122,39 @@ public class ProjectUtil {
 
   public String hash(String path) {
     return DigestUtils.md5DigestAsHex(path.getBytes(StandardCharsets.UTF_8));
+  }
+
+  public String jsonResponseToString(ProjectFolderStructureResponseDto json, int depth, boolean isLastItem) {
+    StringBuilder childrenStr = new StringBuilder("\"\"");
+
+    String tabSize = new String(new char[depth]).replace("\0", "\s\s");
+
+    if(json.getType().equals(FileType.FOLDER)) {
+      childrenStr = new StringBuilder("[\n");
+
+      for(int index = 0; index < json.getChildren().size(); ++index) {
+        childrenStr.append(jsonResponseToString(
+          json.getChildren().get(index),
+          depth + 2,
+          index == json.getChildren().size() - 1
+        ));
+      }
+
+      childrenStr.append(tabSize).append("\s\s").append("]");
+    }
+
+    return String.format(
+      tabSize + "{\n" +
+        tabSize + "\s\s" + "\"id\" : \"%s\",\n" +
+        tabSize + "\s\s" + "\"type\" : \"%s\",\n" +
+        tabSize + "\s\s" + "\"name\" : \"%s\",\n" +
+        tabSize + "\s\s" + "\"children\" : %s\n" +
+        tabSize + "}" + (isLastItem ? "" : ",") + "\n",
+      json.getId(),
+      json.getType().toString(),
+      json.getName(),
+      childrenStr
+    );
   }
 
 }

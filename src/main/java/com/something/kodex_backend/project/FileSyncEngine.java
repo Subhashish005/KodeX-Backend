@@ -106,6 +106,19 @@ public class FileSyncEngine {
         });
     }
 
+    try(Stream<Path> paths = Files.walk(projectRoot)) {
+      paths
+        .forEach(path -> {
+          try {
+            // recursively change file permissions for all folders and files
+            // inside project root
+            Files.setPosixFilePermissions(path, permissions);
+          } catch(IOException ex) {
+            throw new RuntimeException(ex);
+          }
+        });
+    }
+
     log.info("Pull finished for project {}: {} files", projectId, driveFiles.size());
   }
 

@@ -58,6 +58,7 @@ public class TerminalWebSocketHandler extends AbstractWebSocketHandler {
 
         session.getAttributes().put("userId", username);
         session.getAttributes().put("authenticated", true);
+        session.getAttributes().put("projectId", projectId);
 
         terminalSessionService.createTerminal(username, projectId, session);
       } catch(Exception ex) {
@@ -101,7 +102,8 @@ public class TerminalWebSocketHandler extends AbstractWebSocketHandler {
 
   @Override
   public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
-    terminalSessionService.closeSession(session.getId());
+    terminalSessionService
+      .closeSession(session.getId(), (Integer) session.getAttributes().get("projectId"));
   }
 
 }

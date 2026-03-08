@@ -42,11 +42,23 @@ public class ProjectController {
   }
 
   @GetMapping("/{project-id}")
-  public ResponseEntity<ProjectFolderStructureResponseDto> getProject(
+  public ResponseEntity<String> getProject(
     @PathVariable("project-id") Integer projectId,
     HttpServletRequest request
   ) {
     return projectService.getProject(projectId, request);
+  }
+
+  @GetMapping("/{project-id}/structure")
+  public ResponseEntity<String> getProjectStructure(
+    @PathVariable("project-id") Integer projectId
+  ) {
+    return projectService.getProjectStructure(projectId);
+  }
+
+  @GetMapping("/{project-id}/save")
+  public ResponseEntity<Void> saveProject(@PathVariable Integer projectId) {
+    return projectService.saveProject(projectId);
   }
 
   @PostMapping("/{project-id}/folders")

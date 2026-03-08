@@ -4,6 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.model.Frame;
+import com.something.kodex_backend.project.ProjectMountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.BinaryMessage;
@@ -24,6 +25,7 @@ public class TerminalSessionService {
 
   private final DockerService dockerService;
   private final DockerClient dockerClient;
+  private final ProjectMountService projectMountService;
 
   private final Map<String, TerminalSession> sessionMap = new ConcurrentHashMap<> ();
 
@@ -53,7 +55,7 @@ public class TerminalSessionService {
     // if this method wins the project root will be
     // created by 'root' user which WILL cause issues
     Files.createDirectories(projectRoot);
-    String containerId = dockerService.getOrCreateForUser(userId, projectRoot);
+    String containerId = dockerService.getOrCreateForUser(userId, projectRoot, projectId);
 
     dockerService.startContainer(containerId);
 
@@ -128,7 +130,7 @@ public class TerminalSessionService {
   }
 
   // TODO: fix - something is going wrong while removing container
-  public void closeSession(String sessionId) {
+  public void closeSession(String sessionId, Integer projectId) {
     TerminalSession ts = sessionMap.get(sessionId);
     if(ts == null) return;
 
@@ -144,7 +146,15 @@ public class TerminalSessionService {
       Integer::sum
     );
 
-    if(count <= 0) dockerService.stopAndRemoveContainer(ts.userId, ts.containerId);
+    if(count <= 0) {
+      dockerService.stopAndRemoveContainer(ts.userId, ts.containerId);
+
+      try {
+        projectMountService.closeProject(projectId);
+      } catch(IOException | InterruptedException ex) {
+        throw new RuntimeException(ex);
+      }
+    }
 
     sessionMap.remove(sessionId);
   }

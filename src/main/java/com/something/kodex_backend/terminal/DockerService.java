@@ -5,6 +5,7 @@ import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.*;
+import com.something.kodex_backend.project.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,11 +20,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DockerService {
 
   private final DockerClient dockerClient;
+  private final ProjectRepository projectRepository;
 
   // userId to ContainerId
   private final Map<String, String> userContainerMap = new ConcurrentHashMap<> ();
 
-  public String getOrCreateForUser(String userId, Path localProjectDir) {
+  public String getOrCreateForUser(String userId, Path localProjectDir, Integer projectId) {
     String containerName = "term_" + userId;
     String containerId = userContainerMap.get(userId);
 
@@ -50,8 +52,28 @@ public class DockerService {
       .withPidsLimit(128L)
       .withNetworkMode("none");
 
+    String projectLanguage = projectRepository.findById(projectId).orElseThrow(
+      () -> new IllegalArgumentException("No project with project id " + projectId + " found!")
+    ).getLanguage();
+
+    String imageName = "image_";
+
+    switch(projectLanguage) {
+      case "Go":
+        imageName += "go:v1";
+        break;
+      case "Java":
+        imageName += "java:v1";
+        break;
+      case "C++":
+        imageName += "cpp:v1";
+        break;
+      default:
+        throw new IllegalStateException("Unknown project language: " + projectLanguage);
+    }
+
     // or make a new one if not
-    CreateContainerResponse container = dockerClient.createContainerCmd("alpine:latest")
+    CreateContainerResponse container = dockerClient.createContainerCmd(imageName)
       .withName(containerName)
       .withHostConfig(config)
       .withWorkingDir("/workspace")

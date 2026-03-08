@@ -8,6 +8,9 @@ import org.springframework.util.FileSystemUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
@@ -25,7 +28,7 @@ public class ProjectMountService {
 
   private final static Path LOCAL_ROOT = Path.of("/tmp/kodex/projects");
 
-  public Path openProject(
+  public void openProject(
     String accessToken,
     Integer projectId
   ) throws IOException, ExecutionException, InterruptedException {
@@ -51,8 +54,6 @@ public class ProjectMountService {
     syncScheduler.startScheduling(projectId, projectDriveId);
 
     log.info("Project '{}' opened at {}", projectId, localPath);
-
-    return localPath;
   }
 
   public void saveProject(
@@ -94,6 +95,12 @@ public class ProjectMountService {
 
     Files.createDirectories(newFolder);
 
+    // change permissions for newly created folders too
+    Set<PosixFilePermission> permissions =
+      PosixFilePermissions.fromString("rwxrwxrwx");
+
+    Files.setPosixFilePermissions(newFolder, permissions);
+
     // update pathIndex
     String relativePath = LOCAL_ROOT.resolve(projectId.toString())
       .relativize(newFolder).toString();
@@ -117,6 +124,11 @@ public class ProjectMountService {
         .relativize(newFile).toString();
 
     Files.createFile(newFile);
+
+    Set<PosixFilePermission> permissions =
+      PosixFilePermissions.fromString("rwxrwxrwx");
+
+    Files.setPosixFilePermissions(newFile, permissions);
 
     return projectUtil.hash(relativePath);
   }

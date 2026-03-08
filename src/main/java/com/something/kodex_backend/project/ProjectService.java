@@ -206,7 +206,7 @@ public class ProjectService {
     }
   }
 
-  public ResponseEntity<ProjectFolderStructureResponseDto> getProject(
+  public ResponseEntity<String> getProject(
     Integer projectId,
     HttpServletRequest request
   ) {
@@ -214,19 +214,46 @@ public class ProjectService {
     ProjectFolderStructureResponseDto responseDto = new ProjectFolderStructureResponseDto();
 
     try {
-      Path localProjectPath = projectMountService.openProject(accessToken, projectId);
+      projectMountService.openProject(accessToken, projectId);
 
-      projectUtil.buildProjectStructureJson(localProjectPath, localProjectPath, FileType.FOLDER, responseDto);
+      return getProjectStructure(projectId);
     } catch(IOException | ExecutionException | InterruptedException ex) {
       throw new RuntimeException(ex);
     }
+  }
 
-    // change root project id with project name
+  public ResponseEntity<String> getProjectStructure(Integer projectId) {
+    Path localProjectPath = LOCAL_ROOT.resolve(projectId.toString());
+
+    if(!Files.exists(localProjectPath)) {
+      throw new IllegalArgumentException("Project with project id: " + projectId + " is not opened!");
+    }
+
+    ProjectFolderStructureResponseDto responseDto = new ProjectFolderStructureResponseDto();
+
+    try {
+      projectUtil.buildProjectStructureJson(localProjectPath, localProjectPath, FileType.FOLDER, responseDto);
+    } catch(IOException ex) {
+      throw new RuntimeException(ex);
+    }
+
     String projectName = projectRepository.findById(projectId).orElseThrow().getName();
 
     responseDto.setName(projectName);
 
-    return ResponseEntity.ok().body(responseDto);
+    String result = projectUtil.jsonResponseToString(responseDto, 0, true);
+
+    return ResponseEntity.ok().body(result);
+  }
+
+  public ResponseEntity<Void> saveProject(Integer projectId) {
+    try {
+      projectMountService.saveProject(projectId);
+
+      return ResponseEntity.ok().build();
+    } catch(IOException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public ResponseEntity<Map<String, String>> createFolder(
