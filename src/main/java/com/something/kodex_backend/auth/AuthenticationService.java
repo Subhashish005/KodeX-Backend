@@ -18,12 +18,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.MissingRequestCookieException;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -126,6 +128,46 @@ public class AuthenticationService {
 
     return ResponseEntity.ok()
       .body(Map.of("access_token", accessToken));
+  }
+
+  public ResponseEntity<Void> logout(String refreshToken) {
+    Integer userId = jwtAuthenticationUtil.getUserIdFromToken(refreshToken);
+
+    List<Token> oAuthTokens = tokenRepository.findAllOAuthRefreshTokensByUserId(userId).orElseThrow();
+
+    // delete all saved oauth refresh tokens
+    for(Token token : oAuthTokens) {
+      tokenRepository.delete(token);
+    }
+
+    // clear the security context holder to unauthenticate the user
+    SecurityContextHolder.clearContext();
+
+    // remove all the cookies, make a cookie service to handle it maybe?
+    ResponseCookie refreshCookie =
+      ResponseCookie
+        .from("refresh_token", null)
+        .httpOnly(true)
+        .secure(false)    // needed for http, change to true for https
+        .path("/api/v1")
+        .sameSite("Strict")
+        .maxAge(0) // to remove the refresh cookie
+        .build();
+
+    ResponseCookie oAuthRefreshCookie =
+      ResponseCookie
+        .from("oauth_refresh_token", null)
+        .httpOnly(true)
+        .secure(false)    // needed for http, change to true for https
+        .path("/api/v1")
+        .sameSite("Strict")
+        .maxAge(0) // to remove the refresh cookie
+        .build();
+
+    return ResponseEntity.ok()
+      .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+      .header(HttpHeaders.SET_COOKIE, oAuthRefreshCookie.toString())
+      .build();
   }
 
   private void saveUserJWTRefreshToken(User user, String refreshToken) {

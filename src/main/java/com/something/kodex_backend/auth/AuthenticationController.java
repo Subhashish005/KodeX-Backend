@@ -28,8 +28,11 @@ public class AuthenticationController {
     return ResponseEntity.ok(authenticationService.signup(signupRequestDto));
   }
 
-  // TODO: make a logout method
-  // see .logout() in securityConfig
+  @GetMapping("/auth/logout")
+  // this is just a hack
+  public ResponseEntity<Void> logout(@CookieValue("refresh_token") String refreshToken) {
+    return authenticationService.logout(refreshToken);
+  }
 
   @GetMapping("/renew-access-token")
   public ResponseEntity<Map<String, String>> renewAccessToken(

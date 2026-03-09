@@ -62,18 +62,29 @@ public class UserService {
       throw new UsernameNotFoundException("No user found with the associated username!");
     }
 
-    ResponseCookie responseCookie =
+    ResponseCookie refreshCookie =
       ResponseCookie
         .from("refresh_token", null)
         .httpOnly(true)
         .secure(false)    // needed for http, change to true for https
-        .path("/api/v1/auth")
+        .path("/api/v1")
+        .sameSite("Strict")
+        .maxAge(0) // to remove the refresh cookie
+        .build();
+
+    ResponseCookie oAuthRefreshCookie =
+      ResponseCookie
+        .from("oauth_refresh_token", null)
+        .httpOnly(true)
+        .secure(false)    // needed for http, change to true for https
+        .path("/api/v1")
         .sameSite("Strict")
         .maxAge(0) // to remove the refresh cookie
         .build();
 
     return ResponseEntity.ok()
-      .header(HttpHeaders.SET_COOKIE, responseCookie.toString())
+      .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+      .header(HttpHeaders.SET_COOKIE, oAuthRefreshCookie.toString())
       .build();
   }
 

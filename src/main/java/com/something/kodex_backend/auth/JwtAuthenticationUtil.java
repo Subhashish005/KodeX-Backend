@@ -58,7 +58,11 @@ public class JwtAuthenticationUtil {
   }
 
   public String getUsernameFromToken(String token) {
-    return extractClaim(token, (claims -> (String) claims.get("name")));
+    return extractClaim(token, claims -> (String) claims.get("name"));
+  }
+
+  public Integer getUserIdFromToken(String token) {
+    return extractClaim(token, claims -> Integer.valueOf(claims.getSubject()));
   }
 
   private String generateToken(
